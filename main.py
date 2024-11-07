@@ -8,7 +8,7 @@ import math
 import ttkbootstrap as ttkb
 from ttkbootstrap.constants import *
 from ttkbootstrap.scrolled import ScrolledFrame
-from constants import HEADERS, ACCOUNT_URL, SUMMONER_URL, MATCH_IDS_URL, MATCH_INFO_URL, REGIONS, PLATFORMS, PROFILE_ICON_PATH, CHAMPION_ICON_PATH, ITEM_ICON_PATH, RUNE_NAME_PATH, STYLE1_TO_CATEGORY, RUNE_ICON_PATH
+from constants import HEADERS, ACCOUNT_URL, SUMMONER_URL, MATCH_IDS_URL, MATCH_INFO_URL, REGIONS, PLATFORMS, PROFILE_ICON_PATH, CHAMPION_ICON_PATH, CHAMPION_STRETCHED_ICON_PATH, ITEM_ICON_PATH, RUNE_NAME_PATH, STYLE1_TO_CATEGORY, RUNE_ICON_PATH
 
 
 class LeagueOfLegendsApp(ttkb.Window):
@@ -88,7 +88,8 @@ class MainView(ttkb.Frame):
         search_button.grid(row=0, column=5, padx=5, pady=5)
 
         # profile section
-        self.profile_frame = ttkb.Frame(self, height=226)
+        self.profile_frame = ttkb.Frame(
+            self, height=226)
         self.profile_frame.grid_propagate(False)  # because of height
         self.profile_frame.grid(row=1, column=0, columnspan=2, padx=20,
                                 pady=20, sticky=(N, S, E, W))
@@ -111,7 +112,7 @@ class MainView(ttkb.Frame):
         self.match_list_frame.grid_propagate(False)
         self.match_list_frame.bind("<Configure>", self.on_scroll)
 
-    def on_scroll(self, event):
+    def on_scroll(self, event: tk.Event) -> None:
         """Check if the user has scrolled to the bottom of the match list 
            and display a 'load more' button."""
         scroll_position = self.match_list_frame.vscroll.get()
@@ -132,7 +133,7 @@ class MainView(ttkb.Frame):
         self.display_match_history(new_match_info)
 
     def on_search(self) -> None:
-        game_name = self.game_name_entry.get()
+        self.game_name = self.game_name_entry.get()
         tag_line = self.tag_line_entry.get()
         platform = self.region_var.get()
         start = 0
@@ -152,23 +153,24 @@ class MainView(ttkb.Frame):
             self.region_base_url = REGIONS["SEA"]
 
         # First API call to get the puuid
-        self.puuid, game_name, tag_line = self.get_puuid(
-            game_name, tag_line, self.region_base_url)
+        self.puuid = self.get_puuid(
+            self.game_name, tag_line, self.region_base_url)
         if self.puuid:
             # Second API call to get the summoner info
             summoner_info = self.get_summoner_info(
                 self.puuid, PLATFORMS[platform])
             if summoner_info:
-                self.display_profile_info(summoner_info, game_name, tag_line)
+                self.display_profile_info(
+                    summoner_info, self.game_name, tag_line)
                 self.match_ids_list = self.get_match_ids(
                     self.puuid, self.region_base_url, start, count)
                 self.match_info_list = self.get_match_info(
                     self.match_ids_list, self.region_base_url)
                 self.display_match_history(self.match_info_list)
             else:
-                self.display_profile_info(None, game_name, tag_line)
+                self.display_profile_info(None, self.game_name, tag_line)
 
-    def get_puuid(self, game_name: str, tag_line: str, region_base_url: str) -> tuple[str, str, str]:
+    def get_puuid(self, game_name: str, tag_line: str, region_base_url: str) -> str:
         """Get puuid for the given game name and tag line."""
         try:
             url = ACCOUNT_URL.format(
@@ -178,16 +180,16 @@ class MainView(ttkb.Frame):
             response_data = response.json()
 
             if "puuid" in response_data:
-                return response_data["puuid"], response_data["gameName"], response_data["tagLine"]
+                return response_data["puuid"]
             else:
                 raise ValueError(response_data.get(
                     "message", "Unknown error occurred."))
         except (requests.exceptions.HTTPError, ValueError) as e:
             self.handle_error(e, response)
-            return None, None, None
+            return ""
         except Exception as e:
             self.handle_error(e)
-            return None, None, None
+            return ""
 
     def get_summoner_info(self, puuid: str, platform_base_url: str) -> dict:
         """Get summoner info for the given puuid."""
@@ -203,7 +205,7 @@ class MainView(ttkb.Frame):
             self.handle_error(e)
             return {}
 
-    def display_profile_info(self, summoner_info, game_name, tag_line):
+    def display_profile_info(self, summoner_info: dict, game_name: str, tag_line: str) -> None:
         """Display profile info in the profile frame."""
         # clear previous content in profile_frame
         for widget in self.profile_frame.winfo_children():
@@ -280,36 +282,32 @@ class MainView(ttkb.Frame):
         """Display match history in the match list frame."""
         self.match_list_frame.grid(
             row=2, column=0, columnspan=2, padx=20, pady=20, sticky=(N, S, E, W))
-        # # label to display loaded match count
-        # self.loaded_match_count = 0
-        # ttkb.Label(self.match_list_frame, text=f"Loaded Matches: {self.loaded_match_count}").grid(
-        #     row=0, column=0, pady=20)
-
-        game_name = self.game_name_entry.get()
-        tag_line = self.tag_line_entry.get()
 
         for match_info in match_info_list:
-            # self.loaded_match_count += 1
             self.match_frame = ttkb.Frame(
                 self.match_list_frame, borderwidth=2, relief="solid")
             self.match_frame.grid(row=self.current_row_index,
-                                  column=0, padx=20, sticky=(E, W))
+                                  column=0, padx=20)
             self.match_frame.bind("<Button-1>", lambda _,
                                   m=match_info: self.show_match_details(m))
 
             for participant in match_info['info']['participants']:
-                if (participant['riotIdGameName'] == game_name and participant['riotIdTagline'] == tag_line):
+                if (participant['puuid'] == self.puuid):
                     self.display_match_row(
                         self.current_row_index, participant, match_info)
                     break
 
             self.current_row_index += 1
 
-    def show_match_details(self, match_info):
+        # label to display loaded match count
+        ttkb.Label(self, text=f"Loaded Matches: {self.current_row_index}").grid(
+            row=2, column=0, columnspan=2, padx=(0, 60), sticky=(N, E))
+
+    def show_match_details(self, match_info: dict) -> None:
         """Switch to MatchDetailView and pass teh match_id."""
         match_detail_view = self.parent.frames["MatchDetailView"]
         match_detail_view.display_match_details(
-            self.game_name_entry.get(), match_info)
+            self.game_name, match_info)
         self.parent.show_frame("MatchDetailView")
 
     def display_match_row(self, i: int, participant: dict, match_info: dict) -> None:
@@ -459,12 +457,14 @@ class MatchDetailView(ttkb.Frame):
         self.clear_content()
         self.configure_grid()
 
+        self.game_name = game_name
+
         game_mode = match_info['info']['gameMode']
         game_duration = match_info['info']['gameDuration']
         game_end_timestamp = match_info['info'].get('gameEndTimestamp')
 
         self.display_header_row(game_mode, game_duration, game_end_timestamp)
-        self.display_participants(game_name, match_info)
+        self.display_participants(match_info)
 
     def clear_content(self) -> None:
         """Clear the previous content of the frame."""
@@ -529,7 +529,7 @@ class MatchDetailView(ttkb.Frame):
         self.game_duration_minutes = self.get_game_duration_minutes(
             game_duration, game_end_timestamp)
         ttkb.Label(self, text=f"{self.game_duration_minutes:.0f} min", font=("Arial", 8)).grid(
-            row=0, column=1, padx=(100, 0), sticky=(W))
+            row=0, column=1, padx=(200, 0), sticky=(W))
 
     def get_game_duration_minutes(self, game_duration: int, game_end_timestamp: int) -> float:
         """Calculate the game duration in minutes."""
@@ -538,7 +538,7 @@ class MatchDetailView(ttkb.Frame):
         else:
             return game_duration / 60000  # gameDuration is in milliseconds
 
-    def display_participants(self, game_name: str, match_info: dict) -> None:
+    def display_participants(self, match_info: dict) -> None:
         """Display participant details."""
         participants = match_info['info']['participants']
         self.max_damage_dealt = max(p['totalDamageDealtToChampions']
@@ -547,9 +547,9 @@ class MatchDetailView(ttkb.Frame):
                                     for p in participants)
 
         for i, participant in enumerate(participants):
-            self.display_participant_row(i, participant, game_name)
+            self.display_participant_row(i, participant)
 
-    def display_participant_row(self, i: int, participant: dict, game_name: str) -> None:
+    def display_participant_row(self, i: int, participant: dict) -> None:
         """Display participant details in a row."""
         self.player_frame = ttkb.Frame(self, borderwidth=2, relief="solid")
         self.player_frame.grid(row=i+1, column=1, padx=20)
@@ -580,12 +580,11 @@ class MatchDetailView(ttkb.Frame):
         # declare vars outside and pass them in, especially for the function with lots of params
         self.display_champ_level(i, champ_level)
         self.display_champ_icon(i, champ_name)
-        self.display_game_name_champ(
-            i, game_name, participant_game_name, champ_name)
+        self.display_game_name_champ(i, participant_game_name, champ_name)
         self.display_rune_styles(i, style1, style2)
         self.display_inventory(i, participant)
         self.display_stats(i, kda, kda1, damage_dealt, damage_taken, gold_earned, gold_per_minute,
-                           minions_killed, game_name, participant_game_name)
+                           minions_killed, participant_game_name)
 
     def display_champ_level(self, i: int, champ_level: int) -> None:
         """Display champion level."""
@@ -595,7 +594,7 @@ class MatchDetailView(ttkb.Frame):
     def display_champ_icon(self, i: int, champ_name: str) -> None:
         """Display champion icon."""
         champ_pic_path = os.path.join(
-            r"dragontail-14.20.1\img\champion\centered", f"{champ_name}_0.jpg")
+            CHAMPION_STRETCHED_ICON_PATH, f"{champ_name}_0.jpg")
         champ_image = Image.open(champ_pic_path).resize(
             (200, 70), Image.Resampling.LANCZOS)
         champ_photo = ImageTk.PhotoImage(champ_image)
@@ -603,11 +602,11 @@ class MatchDetailView(ttkb.Frame):
         champ_label.image = champ_photo
         champ_label.grid(row=i, column=1, padx=20)
 
-    def display_game_name_champ(self, i: int, game_name: str, participant_game_name: str, champ_name: str):
+    def display_game_name_champ(self, i: int, participant_game_name: str, champ_name: str):
         """Display game name and champion name."""
         self.style.configure(
             "SelfGameNameLabel.TLabel", foreground="#fabe0a")
-        if participant_game_name == game_name:
+        if participant_game_name == self.game_name:
             game_name_label = ttkb.Label(
                 self.player_frame, text=f"{participant_game_name}\n{champ_name}", font=("Arial", 8, "bold"), style="SelfGameNameLabel.TLabel")
         else:
@@ -691,7 +690,7 @@ class MatchDetailView(ttkb.Frame):
             item_label.image = item_photo
             item_label.grid(row=i, column=4+idx)
 
-    def display_stats(self, i: int, kda: str, kda1: str, damage_dealt: int, damage_taken: int, gold_earned: int, gold_per_minute: int, minions_killed: int, game_name: str, participant_game_name: str) -> None:
+    def display_stats(self, i: int, kda: str, kda1: str, damage_dealt: int, damage_taken: int, gold_earned: int, gold_per_minute: int, minions_killed: int, participant_game_name: str) -> None:
         """Display KDA, damage, gold, and minion stats."""
         def create_label(text: str, row: int, col: int, padx: tuple = (0, 0), pady: tuple = (0, 0), minsize: int = 100) -> ttkb.Label:
             """Helper to create and grid labels with standard settings."""
@@ -718,7 +717,7 @@ class MatchDetailView(ttkb.Frame):
         create_label(damage_dealt_text, row=i, col=12,
                      pady=(0, 20), minsize=150)
         damage_dealt_percent = (damage_dealt / self.max_damage_dealt) * 100
-        damage_dealt_style = "SelfDamageDealtBar.Horizontal.TProgressbar" if participant_game_name == game_name else "DamageDealtBar.Horizontal.TProgressbar"
+        damage_dealt_style = "SelfDamageDealtBar.Horizontal.TProgressbar" if participant_game_name == self.game_name else "DamageDealtBar.Horizontal.TProgressbar"
         create_progress_bar(damage_dealt_percent, row=i,
                             col=12, style=damage_dealt_style)
 
@@ -727,7 +726,7 @@ class MatchDetailView(ttkb.Frame):
         create_label(damage_taken_text, row=i, col=13,
                      pady=(0, 20), minsize=150)
         damage_taken_percent = (damage_taken / self.max_damage_taken) * 100
-        damage_taken_style = "SelfDamageDealtBar.Horizontal.TProgressbar" if participant_game_name == game_name else "DamageTakenBar.Horizontal.TProgressbar"
+        damage_taken_style = "SelfDamageDealtBar.Horizontal.TProgressbar" if participant_game_name == self.game_name else "DamageTakenBar.Horizontal.TProgressbar"
         create_progress_bar(damage_taken_percent, row=i,
                             col=13, style=damage_taken_style)
 

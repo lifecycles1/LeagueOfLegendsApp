@@ -1,4 +1,4 @@
-LOL_API_KEY = ""
+LOL_API_KEY = "RGAPI-6523ed58-c16e-461c-8597-3961294ca129"
 HEADERS = {"X-Riot-Token": LOL_API_KEY}
 ACCOUNT_URL = "https://{base_url}/riot/account/v1/accounts/by-riot-id/{game_name}/{tag_line}"
 SUMMONER_URL = "https://{base_url}/lol/summoner/v4/summoners/by-puuid/{puuid}"
@@ -42,8 +42,9 @@ __rune_categories = {
 STYLE1_TO_CATEGORY = {style: category for category,
                       styles in __rune_categories.items() for style in styles}
 
-PROFILE_ICON_PATH = r"dragontail-14.20.1\14.20.1\img\profileicon"
-CHAMPION_ICON_PATH = r"dragontail-14.20.1\14.20.1\img\champion"
-ITEM_ICON_PATH = r"dragontail-14.20.1\14.20.1\img\item"
-RUNE_NAME_PATH = r"dragontail-14.20.1\14.20.1\data\en_GB\runesReforged.json"
-RUNE_ICON_PATH = r"dragontail-14.20.1\img\perk-images\Styles"
+PROFILE_ICON_PATH = r"dragontail-14.22.1\14.22.1\img\profileicon"
+CHAMPION_ICON_PATH = r"dragontail-14.22.1\14.22.1\img\champion"
+CHAMPION_STRETCHED_ICON_PATH = r"dragontail-14.22.1\img\champion\centered"
+ITEM_ICON_PATH = r"dragontail-14.22.1\14.22.1\img\item"
+RUNE_NAME_PATH = r"dragontail-14.22.1\14.22.1\data\en_GB\runesReforged.json"
+RUNE_ICON_PATH = r"dragontail-14.22.1\img\perk-images\Styles"
